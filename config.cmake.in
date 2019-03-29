@@ -1,0 +1,9 @@
+@PACKAGE_INIT@
+find_package(serial REQUIRED)
+
+include("${CMAKE_CURRENT_LIST_DIR}/@TARGETS_EXPORT_NAME@.cmake")
+set_and_check(libubbo_INCLUDE_DIRS "@PACKAGE_INCLUDE_INSTALL_DIR@")
+list(APPEND libubbo_INCLUDE_DIRS "${serial_INCLUDE_DIRS}")
+set(libubbo_LIBRARIES "@LIBRARY_NAME@")
+list(APPEND libubbo_LIBRARIES "${serial_LIBRARIES}")
+check_required_components("@PROJECT_NAME@")
