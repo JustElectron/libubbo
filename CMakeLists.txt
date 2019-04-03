@@ -60,6 +60,7 @@ if(LIBUBBO_BUILD_EXAMPLES)
 # Declare example executables
 set(EXAMPLES
     hello_world
+    Serial_test
 )
 
 foreach(EXAMPLE ${EXAMPLES})
