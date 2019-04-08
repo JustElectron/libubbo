@@ -1,13 +1,18 @@
 #ifndef _UBBO_H_
 #define _UBBO_H_
 
+#include <stdint.h>
+
 #include "serial/serial.h"
+
 
 namespace ubbo {
     class Ubbo{
         public:
 
         size_t printTest(const uint8_t* data, size_t bytes);
+
+        size_t sendPacket(const std::vector<uint8_t>& packet);
 
         /**
          * @brief Construct a new empty Ubbo object
@@ -147,6 +152,8 @@ namespace ubbo {
          * 
          */
         void onData();
+
+        uint8_t map(uint8_t x, uint8_t in_min, uint8_t in_max, uint8_t out_min, uint8_t out_max);
 
         std::string _port;
         uint32_t _baud;

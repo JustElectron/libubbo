@@ -43,11 +43,12 @@ include_directories(
     include
 )
 
-# Declare libraru
+# Declare library
 add_library(
     ${LIBRARY_NAME}	STATIC
     src/hello.cpp
     src/ubbo.cpp
+    src/commands.cpp
 )
 
 # Link to serial
@@ -61,6 +62,7 @@ if(LIBUBBO_BUILD_EXAMPLES)
 set(EXAMPLES
     hello_world
     Serial_test
+    move_test
 )
 
 foreach(EXAMPLE ${EXAMPLES})
