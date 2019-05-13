@@ -2,6 +2,11 @@
 #define _UBBO_H_
 
 #include <stdint.h>
+#include <chrono>
+#include <mutex>
+#include <thread>
+#include <future>
+#include <assert.h>
 
 #include "serial/serial.h"
 
@@ -34,6 +39,8 @@ namespace ubbo {
          * 
          */
         ~Ubbo();
+
+        bool connect();
 
         /**
          * @brief Try to establish serial connection to the robot.
@@ -95,7 +102,7 @@ namespace ubbo {
          * 
          * @todo Configure vel for [x,y].
          */
-        void drive(float vel, float angle);
+        size_t drive(float vel_x, float vel_y, float ang_z);
 
         /**
          * @brief Drive robot forward at a target angle.
@@ -139,6 +146,12 @@ namespace ubbo {
          */
         void moveTablet(uint8_t angle);
 
+        size_t available();
+
+        std::string read(size_t size=1);
+
+        std::vector<uint8_t> readBuffer();
+
         private:
 
         /**
@@ -151,9 +164,15 @@ namespace ubbo {
          * @brief Event handler for incoming serial data.
          * 
          */
-        void onData();
+        void onData(std::future<void> futureObj);
+
+        void startReading();
+
+        void stopReading();
 
         uint8_t map(uint8_t x, uint8_t in_min, uint8_t in_max, uint8_t out_min, uint8_t out_max);
+
+        uint8_t mapFloatToUInt(float x, float in_min, float in_max, uint8_t out_min, uint8_t out_max);
 
         std::string _port;
         uint32_t _baud;
@@ -161,6 +180,16 @@ namespace ubbo {
 
         serial::Serial serial;
         serial::Timeout _serial_timeout;
+
+        std::chrono::high_resolution_clock::time_point _last_send;
+        std::vector<uint8_t> _last_packet;
+
+        std::thread _serial_handler;
+        std::vector<uint8_t> _buffer;
+        std::promise<void> _serial_exit_signal;
+        std::future<void> _futureObj;
+
+        std::mutex _serial_mutex;
 
     }; // end Ubbo class
 } // end ubbo namespace

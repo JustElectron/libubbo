@@ -63,6 +63,8 @@ set(EXAMPLES
     hello_world
     Serial_test
     move_test
+    drive_circle
+    reader_thread_test
 )
 
 foreach(EXAMPLE ${EXAMPLES})

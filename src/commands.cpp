@@ -33,5 +33,5 @@ std::vector<uint8_t> createPacket(const Commands& cmd){
 }
 
 bool verifyPacket(std::vector<uint8_t> packet){
-
+    return true;
 }

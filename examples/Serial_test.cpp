@@ -1,5 +1,6 @@
 #include <iostream>
 #include <unistd.h>
+#include <chrono>
 
 #include "ubbo/ubbo.h"
 #include "ubbo/commands.h"
@@ -15,11 +16,11 @@ int main(int argc, char** argv){
     std::cout << "---------------------------------------" << std::endl;
     std::cout << "          Ubbo cpp serial test" << std::endl;
     std::cout << "---------------------------------------" << std::endl;
-    ubbo::Ubbo my_ubbo("/dev/ttyACM0",9600);
+    ubbo::Ubbo* my_ubbo = new ubbo::Ubbo("/dev/ttyACM0",57600);
 
-    std::cout << "Serial port is:" << my_ubbo.getPort() << std::endl;
+    std::cout << "Serial port is:" << my_ubbo->getPort() << std::endl;
 
-    if (my_ubbo.isConnected()){
+    if (my_ubbo->isConnected()){
         std::cout << "Serial port connected" << std::endl;
     }
     else {
@@ -32,47 +33,33 @@ int main(int argc, char** argv){
 
     uint8_t data[] = {};
 
-    std::vector<uint8_t> packet = createPacket(cmd, sizeof(data), data);
+    std::vector<uint8_t> packet1 = createPacket(cmd, sizeof(data), data);
+    Commands cmd2 = CMD_DRIVE_FORWARD;
+    uint8_t data2[] = {1};
+    std::vector<uint8_t> packet2 = createPacket(cmd2, sizeof(data2), data2);
 
-    print_vector(packet);
-
-    size_t data_send = my_ubbo.sendPacket(packet);
-    //usleep(1*1000*1000);
-    //size_t data_send2 = my_ubbo.sendPacket(packet);
-
-    std::cout << "data send" << data_send << std::endl;
-    /*const uint8_t command[1] = {0x01};
-    const uint8_t size[1] = {0x01};
-    const uint8_t datas[1] = {0x3C};
-    const uint8_t E[1] = {0x7F}; 
-    const uint8_t O[1] = {0x00};
-    const uint8_t F[1] = {0x7F};
-
-    my_ubbo.printTest(command, 1);
-    usleep(100*1000);
-    my_ubbo.printTest(size, 1);
-    usleep(100*1000);
-    my_ubbo.printTest(datas, 1);
-    usleep(100*1000);
-    my_ubbo.printTest(E, 1);
-    usleep(100*1000);
-    my_ubbo.printTest(O, 1);
-    usleep(100*1000);
-    my_ubbo.printTest(F, 1);
-    usleep(1*1000*1000);
-    my_ubbo.printTest(command, 1);
-    usleep(100*1000);
-    my_ubbo.printTest(size, 1);
-    usleep(100*1000);
-    my_ubbo.printTest(datas, 1);
-    usleep(100*1000);
-    my_ubbo.printTest(E, 1);
-    usleep(100*1000);
-    my_ubbo.printTest(O, 1);
-    usleep(100*1000);
-    my_ubbo.printTest(F, 1);
-    usleep(100*1000);*/
-
+    
+    std::chrono::high_resolution_clock::time_point t[100];
+    size_t data_send[99];
+    int count = 0;
+    while (count < 100){
+        //std::cout << "This threads" << std::this_thread::get_id() << std::endl;
+        if (count == 9){
+            t[count] = std::chrono::high_resolution_clock::now();
+            data_send[count] = my_ubbo->sendPacket(packet2);
+        }
+        else{
+            t[count] = std::chrono::high_resolution_clock::now();
+            data_send[count] = my_ubbo->sendPacket(packet1);
+        }
+        count++;
+    }
+    t[10] = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < 100; i++){
+        std::cout << "data send" << data_send[i] << std::endl;
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t[i+1]-t[i]).count();
+        std::cout << "duration" << duration << std::endl;
+    }
 
     std::cout << "done" << std::endl;
 
