@@ -6,7 +6,7 @@
 
 const uint8_t E_O_F[3] = {0x7F, 0x00, 0x7F};
 //const std::vector<uint8_t> E_O_F_Vec = {0x7F, 0x00, 0x7F};
-const std::vector<uint8_t> E_O_F_Vec = {3, 4, 5};
+const std::vector<uint8_t> E_O_F_Vec = {0x7F, 0x00, 0x7F};
 
 enum Commands {
     CMD_DRIVE_FORWARD = 0x01,
@@ -17,6 +17,7 @@ enum Commands {
     CMD_TRANSLATE_RIGHT = 0x09,
     CMD_MOVE_TABLET = 0x10,
     CMD_HEARTBEAT = 0x11,
+    CMD_SENSOR_STATUS = 0x20,
     CMD_VERSION_STATUS = 0x21,
     CMD_BATTERY_STATUS = 0x22,
     CMD_VEL_FORWARD = 0x40,
@@ -29,6 +30,6 @@ std::vector<uint8_t> createPacket(const Commands& cmd, const std::vector<uint8_t
 
 std::vector<uint8_t> createPacket(const Commands& cmd);
 
-bool verifyPacket(std::vector<uint8_t> packet);
+
 
 #endif // _UBBO_COMMANDS_H_

@@ -65,6 +65,7 @@ set(EXAMPLES
     move_test
     drive_circle
     reader_thread_test
+    verify_packet_test
 )
 
 foreach(EXAMPLE ${EXAMPLES})

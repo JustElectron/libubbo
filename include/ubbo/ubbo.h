@@ -139,6 +139,8 @@ namespace ubbo {
          */
         void translateRight();
 
+        void requestBatteryStatus();
+
         /**
          * @brief Move tablet mount.
          * 
@@ -151,6 +153,12 @@ namespace ubbo {
         std::string read(size_t size=1);
 
         std::vector<uint8_t> readBuffer();
+
+        int getBatteryStatus();
+
+        const uint8_t* getVersionStatus();
+
+        const bool* getSensorStatus();
 
         private:
 
@@ -170,6 +178,8 @@ namespace ubbo {
 
         void stopReading();
 
+        bool verifyPacket(std::vector<uint8_t> packet);
+
         uint8_t map(uint8_t x, uint8_t in_min, uint8_t in_max, uint8_t out_min, uint8_t out_max);
 
         uint8_t mapFloatToUInt(float x, float in_min, float in_max, uint8_t out_min, uint8_t out_max);
@@ -177,6 +187,10 @@ namespace ubbo {
         std::string _port;
         uint32_t _baud;
         int _connection_retry;
+
+        uint8_t _battery_status;
+        uint8_t _version_status[2];
+        bool _sensor_status[4];
 
         serial::Serial serial;
         serial::Timeout _serial_timeout;
