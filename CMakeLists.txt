@@ -46,7 +46,6 @@ include_directories(
 # Declare library
 add_library(
     ${LIBRARY_NAME}	STATIC
-    src/hello.cpp
     src/ubbo.cpp
     src/commands.cpp
 )
@@ -60,12 +59,12 @@ target_link_libraries(${LIBRARY_NAME}
 if(LIBUBBO_BUILD_EXAMPLES)
 # Declare example executables
 set(EXAMPLES
-    hello_world
     Serial_test
     move_test
     drive_circle
     reader_thread_test
     verify_packet_test
+    read_pulses
 )
 
 foreach(EXAMPLE ${EXAMPLES})

@@ -5,6 +5,7 @@
 #include <chrono>
 #include <unistd.h>
 #include <mutex>
+#include <math.h>
 #include <future>
 #include <assert.h>
 #include <algorithm>
@@ -12,6 +13,13 @@
 #include "serial/serial.h"
 #include "ubbo/ubbo.h"
 #include "ubbo/commands.h"
+
+void print_vectors(std::vector<uint8_t> const& input){
+    std::cout << "printing" << std::endl;
+    for (int i = 0; i < input.size(); i++){
+        std::cout << (unsigned)input.at(i) << ' ';
+    }
+}
 
 namespace ubbo{
 
@@ -90,10 +98,23 @@ void Ubbo::init(){
     _port = "";
     _baud = 57600;
     _connection_retry = 5;
-    _serial_timeout = serial::Timeout::simpleTimeout(1000);
+    _serial_timeout = serial::Timeout::simpleTimeout(100);
     _battery_status = 0;
     _version_status[0] = 0;
     _version_status[1] = 0;
+    _front_right_dist = 0.0;
+    _back_right_dist = 0.0;
+    _back_left_dist = 0.0;
+    _front_left_dist = 0.0;
+    _wheel_circ_mm = 300.0;
+    _wheel_dist_x = 300.0;
+    _wheel_dist_y = 300.0;
+    _PPR = 12 * 64;
+    _buffer.erase(_buffer.begin(), _buffer.end());
+    fr = false;
+    br = false;
+    bl = false;
+    fl = false;
     for (int i = 0; i < 4; i++){
         _sensor_status[i] = false;
     }
@@ -112,6 +133,7 @@ bool Ubbo::connect(){
             serial.open();
         }
         else{
+            std::cout << "flushed: " << sizeof(serial.read(serial.available())) << std::endl;
             // Start sensor readings
             startReading();
             return true;
@@ -134,6 +156,7 @@ bool Ubbo::connect(const std::string& port, const uint32_t& baud){
             serial.open();
         }
         else{
+            std::cout << "flushed: " << serial.read(serial.available()) << std::endl;
             // Start sensor readings
             startReading();
             return true;
@@ -163,7 +186,7 @@ void Ubbo::setPort(const std::string& port){
 void Ubbo::setBaud(const uint32_t& baud){
     // Set baud member var and serial object
     _baud = baud;
-    serial.setBaud(baud);
+    serial.setBaudrate(baud);
 }
 
 std::string Ubbo::getPort(){
@@ -271,16 +294,21 @@ void Ubbo::translateRight(){
 }
 
 void Ubbo::requestBatteryStatus(){
+    // Set command
     Commands cmd = CMD_BATTERY_STATUS;
+    // Create packet
     std::vector<uint8_t> packet = createPacket(cmd);
+    // Send packet
     sendPacket(packet);
 }
 
 size_t Ubbo::available(){
+    // Return bytes available in the serial buffer
     return serial.available();
 }
 
 std::string Ubbo::read(size_t size){
+
     return serial.read(size);
 }
 
@@ -291,63 +319,91 @@ std::vector<uint8_t> Ubbo::readBuffer(){
 }
 
 int Ubbo::getBatteryStatus(){
+    // Return battery status
     return _battery_status;
 }
 
 const uint8_t* Ubbo::getVersionStatus(){
+    // Return version status reference
     return _version_status;
 }
 
+/*long Ubbo::getEncoderPosition(){
+    return _wheel_ul_pulses;
+}*/
+
 const bool* Ubbo::getSensorStatus(){
+    // Return sensor status reference
     return _sensor_status;
 }
 
 void Ubbo::onData(std::future<void> futureObj){
-    while (futureObj.wait_for(std::chrono::milliseconds(1)) == std::future_status::timeout)
+    // Run while promise is not set
+    while (futureObj.wait_for(std::chrono::microseconds(10))
+            == std::future_status::timeout)
 	{
+        // Get number of available bytes
         size_t bytes_available = serial.available();
 		if (bytes_available){
+            // Read number of available bytes into buffer
             serial.read(_buffer, bytes_available);
-            std::cout << "Reading: " << bytes_available << std::endl;
+            //std::cout << "Read: " << bytes_available << std::endl;
             // https://stackoverflow.com/questions/10508392/looking-to-find-a-c-stl-vector-inside-an-stl-vector
-            auto it = std::search(_buffer.begin(),_buffer.end(),
+            // Search buffer for EOF
+            while (true){
+                auto it = std::search(_buffer.begin(),_buffer.end(),
                 E_O_F_Vec.begin(),E_O_F_Vec.end());
-            if(it != _buffer.end()){
-                //std::cout << "EOF found at offset "
-                //            << it - _buffer.begin() << '\n';
-                if (verifyPacket(_buffer)){
-                    _buffer.erase(_buffer.begin(), it + E_O_F_Vec.size());
+                if(it != _buffer.end()){
+                    // Verify that buffer contains a package
+                    //std::cout << "Found EOF" << std::endl;
+                    if (verifyPacket(_buffer, it)){
+                        // Erase buffer from beginning to EOF
+                        _buffer.erase(_buffer.begin(), it + E_O_F_Vec.size());
+                    }
+                    else {
+                        auto it2 = std::search(it+3,_buffer.end(),
+                            E_O_F_Vec.begin(),E_O_F_Vec.end());
+                        if (verifyPacket(_buffer, it2)){
+                            // Erase buffer from beginning to EOF
+                            _buffer.erase(_buffer.begin(), it + E_O_F_Vec.size());
+                            std::cout << "read sub EOF" << std::endl;
+                        }
+                    }
+                }
+                else{
+                    //std::cout << "break" << std::endl;
+                    break;
                 }
             }
-            else{
-                //std::cout << "EOF not found\n";
-            }
         }
-		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        // Sleep thread for 10 ms
+		std::this_thread::sleep_for(std::chrono::microseconds(10));
 
 	}
 }
 
 void Ubbo::startReading(){
+    // Set future object with exit signal promise
     _futureObj = _serial_exit_signal.get_future();
+    // Start thread for reading data
     _serial_handler = std::thread(&Ubbo::onData, this, std::move(_futureObj));
 }
 
 void Ubbo::stopReading(){
+    // Set exit signal for readign thread
     _serial_exit_signal.set_value();
+    // Wait for thread to join
     _serial_handler.join();
     // Clear promise 
     _serial_exit_signal = std::promise<void>();
 }
 
-bool Ubbo::verifyPacket(std::vector<uint8_t> packet){
+bool Ubbo::verifyPacket(std::vector<uint8_t> packet, std::vector<uint8_t>::iterator it){
     // Minimum data package size
     if (packet.size() < 5){
         return false;
     }
-    // Search for EOF and create iterator at start of it
-    auto it = std::search(_buffer.begin(),_buffer.end(),
-                E_O_F_Vec.begin(),E_O_F_Vec.end());
+
     // Validate iterator
     if(it != _buffer.end()){
         // Convert iterator to index
@@ -357,6 +413,7 @@ bool Ubbo::verifyPacket(std::vector<uint8_t> packet){
             // Validate package size
             if (packet[index - 2] == 1){
                 _battery_status = packet[index - 1];
+                //std::cout << "Received battery" << std::endl;
             }
             else{
                 return false;
@@ -368,6 +425,7 @@ bool Ubbo::verifyPacket(std::vector<uint8_t> packet){
             if (packet[index -3] == 2){
                 _version_status[0] = packet[index - 2];
                 _version_status[1] = packet[index - 1];
+                //std::cout << "Received version" << std::endl;
             }
             else{
                 return false;
@@ -377,6 +435,7 @@ bool Ubbo::verifyPacket(std::vector<uint8_t> packet){
             // Sensor status received
             // Validate package size
             if (packet[index - 3] == 2){
+                //std::cout << "Received sensor" << std::endl;
                 if (packet[index - 1] == 1){
                     _sensor_status[packet[index - 2]] = true;
                 }
@@ -385,6 +444,86 @@ bool Ubbo::verifyPacket(std::vector<uint8_t> packet){
                 }
             }
             else{
+                return false;
+            }
+        }
+        else if (packet[index - 5] == CMD_ENCODER_STATUS){
+            //print_vectors(packet);
+            if (packet[index - 4] == 3){
+                
+                switch (packet[index - 3]){
+                    case 1:
+                    {
+
+                        int curr_pulse = (short)(packet[index - 2] << 8 | packet[index -1]);
+                        _front_right_dist += (double)curr_pulse/_PPR*_wheel_circ_mm;
+                        //std::cout << "fr pulse: " << curr_pulse << std::endl;
+                        //std::cout << "Received UR" << std::endl;
+                        fr = true;
+                        break;
+                    }
+                    
+                    case 2:
+                    {
+                        int curr_pulse = (short)(packet[index - 2] << 8 | packet[index -1]);
+                        _back_right_dist += (double)curr_pulse/_PPR*_wheel_circ_mm;
+                        //std::cout << "Received LR" << std::endl;
+                        br = true;
+                        break;
+                    }
+                    
+                    case 3:
+                    {
+                        int curr_pulse = (short)(packet[index - 2] << 8 | packet[index -1]);
+                        _back_left_dist += (double)curr_pulse/_PPR*_wheel_circ_mm;
+                        //std::cout << "Received LL" << std::endl;
+                        bl = true;
+                        break;
+                    }
+
+                    case 4:
+                    {
+                        int curr_pulse = (short)(packet[index - 2] << 8 | packet[index -1]);
+                        _front_left_dist += (double)curr_pulse/_PPR*_wheel_circ_mm;
+                        //std::cout << "Received UL" << std::endl;
+                        fl = true;
+                        break;
+                    }
+                    
+                    default:
+                        break;
+                }
+                if (fr && br && bl && fl){
+                    double dist_x = (_front_right_dist + _back_right_dist
+                        + _back_left_dist + _front_left_dist) / 4;
+                    double dist_y = (_front_right_dist - _back_right_dist
+                        + _back_left_dist - _front_left_dist) / 4;
+                    double rot_z = (_front_right_dist + _back_right_dist
+                        - _back_left_dist - _front_left_dist) / 4;
+
+                    //std::cout << _front_right_dist << "," << _back_right_dist <<
+                    //    "," << _back_left_dist <<"," << _front_left_dist << std::endl;
+
+                    double delta_x = dist_x*cos(position.yaw) - dist_y*sin(position.yaw);
+                    double delta_y = dist_x*sin(position.yaw) + dist_y*cos(position.yaw);
+                    double delta_z = rot_z / ((_wheel_dist_x / 2) + (_wheel_dist_y) / 2);
+
+                    position.x += delta_x/1000;
+                    position.y += delta_y/1000;
+                    position.yaw += delta_z;
+
+                    _front_left_dist = 0;
+                    _front_right_dist = 0;
+                    _back_left_dist = 0;
+                    _back_right_dist = 0;
+
+                    fr = false;
+                    br = false;
+                    bl = false;
+                    fl = false;
+                }
+            }
+            else {
                 return false;
             }
         }
@@ -406,4 +545,7 @@ uint8_t Ubbo::mapFloatToUInt(float x, float in_min, float in_max, uint8_t out_mi
     return (uint8_t)((x - in_min) * (out_max-out_min) / (in_max - in_min) + out_min);
 }
 
+
 } // end namespace
+
+

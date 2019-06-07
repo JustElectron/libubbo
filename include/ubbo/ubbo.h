@@ -160,6 +160,23 @@ namespace ubbo {
 
         const bool* getSensorStatus();
 
+        //long getEncoderPosition();
+
+        struct position {
+            position(): x(0.0), y(0.0), z(0.0),
+                yaw(0.0), pitch(0.0), roll(0.0) {}
+
+            double x;
+            double y;
+            double z;
+
+            double yaw;
+            double pitch;
+            double roll;
+        } position;
+
+        
+
         private:
 
         /**
@@ -178,7 +195,7 @@ namespace ubbo {
 
         void stopReading();
 
-        bool verifyPacket(std::vector<uint8_t> packet);
+        bool verifyPacket(std::vector<uint8_t> packet, std::vector<uint8_t>::iterator it);
 
         uint8_t map(uint8_t x, uint8_t in_min, uint8_t in_max, uint8_t out_min, uint8_t out_max);
 
@@ -188,9 +205,20 @@ namespace ubbo {
         uint32_t _baud;
         int _connection_retry;
 
+        int _wheel_circ_mm;
+        float _wheel_dist_x;
+        float _wheel_dist_y;
+
         uint8_t _battery_status;
         uint8_t _version_status[2];
         bool _sensor_status[4];
+        double _front_right_dist;
+        double _back_right_dist;
+        double _back_left_dist;
+        double _front_left_dist;
+        int _PPR;
+
+        bool fr, br, bl, fl;
 
         serial::Serial serial;
         serial::Timeout _serial_timeout;
