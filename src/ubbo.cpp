@@ -142,7 +142,8 @@ bool Ubbo::connect(){
             serial.open();
         }
         else{
-            std::cout << "flushed: " << sizeof(serial.read(serial.available())) << std::endl;
+            usleep(3*1000*1000);
+            std::string flush = serial.read(serial.available());
             // Start sensor readings
             startReading();
             return true;
@@ -165,7 +166,8 @@ bool Ubbo::connect(const std::string& port, const uint32_t& baud){
             serial.open();
         }
         else{
-            std::cout << "flushed: " << serial.read(serial.available()) << std::endl;
+            usleep(3*1000*1000);
+            std::string flush = serial.read(serial.available());
             // Start sensor readings
             startReading();
             return true;
@@ -381,7 +383,6 @@ void Ubbo::onData(std::future<void> futureObj){
 		if (bytes_available){
             // Read number of available bytes into buffer
             serial.read(_buffer, bytes_available);
-            //std::cout << "Read: " << bytes_available << std::endl;
             // https://stackoverflow.com/questions/10508392/looking-to-find-a-c-stl-vector-inside-an-stl-vector
             // Search buffer for EOF
             while (true){
@@ -389,7 +390,6 @@ void Ubbo::onData(std::future<void> futureObj){
                 E_O_F_Vec.begin(),E_O_F_Vec.end());
                 if(it != _buffer.end()){
                     // Verify that buffer contains a package
-                    //std::cout << "Found EOF" << std::endl;
                     if (verifyPacket(_buffer, it)){
                         // Erase buffer from beginning to EOF
                         _buffer.erase(_buffer.begin(), it + E_O_F_Vec.size());
@@ -400,12 +400,10 @@ void Ubbo::onData(std::future<void> futureObj){
                         if (verifyPacket(_buffer, it2)){
                             // Erase buffer from beginning to EOF
                             _buffer.erase(_buffer.begin(), it + E_O_F_Vec.size());
-                            std::cout << "read sub EOF" << std::endl;
                         }
                     }
                 }
                 else{
-                    //std::cout << "break" << std::endl;
                     break;
                 }
             }
