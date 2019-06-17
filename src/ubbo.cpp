@@ -102,10 +102,21 @@ void Ubbo::init(){
     _battery_status = 0;
     _version_status[0] = 0;
     _version_status[1] = 0;
+
+    _wall_sensor_front = false;
+    _wall_sensor_right = false;
+    _wall_sensor_back = false;
+    _wall_sensor_left = false;
+
     _front_right_dist = 0.0;
     _back_right_dist = 0.0;
     _back_left_dist = 0.0;
     _front_left_dist = 0.0;
+
+    _front_right_vel = 0.0;
+    _back_right_vel = 0.0;
+    _back_left_vel = 0.0;
+    _front_left_vel = 0.0;
     _wheel_circ_mm = 300.0;
     _wheel_dist_x = 300.0;
     _wheel_dist_y = 300.0;
@@ -115,9 +126,7 @@ void Ubbo::init(){
     br = false;
     bl = false;
     fl = false;
-    for (int i = 0; i < 4; i++){
-        _sensor_status[i] = false;
-    }
+
     
 }
 
@@ -229,6 +238,14 @@ size_t Ubbo::drive(float vel_x, float vel_y, float ang_z){
     return sendPacket(packet);
 }
 
+void Ubbo::stop(){
+    Commands cmd = CMD_STOP;
+
+    std::vector<uint8_t> packet = createPacket(cmd);
+    // Send packet
+    sendPacket(packet);
+}
+
 void Ubbo::driveForward(uint8_t angle){
     // Set Command
     Commands cmd = CMD_DRIVE_FORWARD;
@@ -328,13 +345,30 @@ const uint8_t* Ubbo::getVersionStatus(){
     return _version_status;
 }
 
-/*long Ubbo::getEncoderPosition(){
-    return _wheel_ul_pulses;
-}*/
-
-const bool* Ubbo::getSensorStatus(){
+uint8_t Ubbo::getSensorStatus(){
+    uint8_t sensor_status = 0;
     // Return sensor status reference
-    return _sensor_status;
+    if (_wall_sensor_front) sensor_status += 1;
+    if (_wall_sensor_right) sensor_status += 2;
+    if (_wall_sensor_back) sensor_status += 4;
+    if (_wall_sensor_left) sensor_status += 8;
+    return sensor_status;
+}
+
+bool Ubbo::getProxFront(){
+    return _wall_sensor_front;
+}
+
+bool Ubbo::getProxRight(){
+    return _wall_sensor_right;
+}
+
+bool Ubbo::getProxBack(){
+    return _wall_sensor_back;
+}
+
+bool Ubbo::getProxLeft(){
+    return _wall_sensor_left;
 }
 
 void Ubbo::onData(std::future<void> futureObj){
@@ -413,7 +447,6 @@ bool Ubbo::verifyPacket(std::vector<uint8_t> packet, std::vector<uint8_t>::itera
             // Validate package size
             if (packet[index - 2] == 1){
                 _battery_status = packet[index - 1];
-                //std::cout << "Received battery" << std::endl;
             }
             else{
                 return false;
@@ -425,7 +458,7 @@ bool Ubbo::verifyPacket(std::vector<uint8_t> packet, std::vector<uint8_t>::itera
             if (packet[index -3] == 2){
                 _version_status[0] = packet[index - 2];
                 _version_status[1] = packet[index - 1];
-                //std::cout << "Received version" << std::endl;
+
             }
             else{
                 return false;
@@ -435,30 +468,27 @@ bool Ubbo::verifyPacket(std::vector<uint8_t> packet, std::vector<uint8_t>::itera
             // Sensor status received
             // Validate package size
             if (packet[index - 3] == 2){
-                //std::cout << "Received sensor" << std::endl;
+                bool sensor_status = false;
                 if (packet[index - 1] == 1){
-                    _sensor_status[packet[index - 2]] = true;
+                    sensor_status = true;
                 }
-                else {
-                    _sensor_status[packet[index - 2]] = false;
-                }
+                if (packet[index - 2] == 0) _wall_sensor_front = sensor_status;
+                if (packet[index - 2] == 1) _wall_sensor_right = sensor_status;
+                if (packet[index - 2] == 2) _wall_sensor_back = sensor_status;
+                if (packet[index - 2] == 3) _wall_sensor_left = sensor_status;
             }
             else{
                 return false;
             }
         }
         else if (packet[index - 5] == CMD_ENCODER_STATUS){
-            //print_vectors(packet);
             if (packet[index - 4] == 3){
                 
                 switch (packet[index - 3]){
                     case 1:
                     {
-
                         int curr_pulse = (short)(packet[index - 2] << 8 | packet[index -1]);
-                        _front_right_dist += (double)curr_pulse/_PPR*_wheel_circ_mm;
-                        //std::cout << "fr pulse: " << curr_pulse << std::endl;
-                        //std::cout << "Received UR" << std::endl;
+                        _front_right_dist += (double)curr_pulse/_PPR*(_wheel_circ_mm-3);
                         fr = true;
                         break;
                     }
@@ -466,8 +496,7 @@ bool Ubbo::verifyPacket(std::vector<uint8_t> packet, std::vector<uint8_t>::itera
                     case 2:
                     {
                         int curr_pulse = (short)(packet[index - 2] << 8 | packet[index -1]);
-                        _back_right_dist += (double)curr_pulse/_PPR*_wheel_circ_mm;
-                        //std::cout << "Received LR" << std::endl;
+                        _back_right_dist += (double)curr_pulse/_PPR*(_wheel_circ_mm-3);
                         br = true;
                         break;
                     }
@@ -476,7 +505,6 @@ bool Ubbo::verifyPacket(std::vector<uint8_t> packet, std::vector<uint8_t>::itera
                     {
                         int curr_pulse = (short)(packet[index - 2] << 8 | packet[index -1]);
                         _back_left_dist += (double)curr_pulse/_PPR*_wheel_circ_mm;
-                        //std::cout << "Received LL" << std::endl;
                         bl = true;
                         break;
                     }
@@ -485,7 +513,6 @@ bool Ubbo::verifyPacket(std::vector<uint8_t> packet, std::vector<uint8_t>::itera
                     {
                         int curr_pulse = (short)(packet[index - 2] << 8 | packet[index -1]);
                         _front_left_dist += (double)curr_pulse/_PPR*_wheel_circ_mm;
-                        //std::cout << "Received UL" << std::endl;
                         fl = true;
                         break;
                     }
@@ -501,12 +528,13 @@ bool Ubbo::verifyPacket(std::vector<uint8_t> packet, std::vector<uint8_t>::itera
                     double rot_z = (_front_right_dist + _back_right_dist
                         - _back_left_dist - _front_left_dist) / 4;
 
-                    //std::cout << _front_right_dist << "," << _back_right_dist <<
-                    //    "," << _back_left_dist <<"," << _front_left_dist << std::endl;
-
                     double delta_x = dist_x*cos(position.yaw) - dist_y*sin(position.yaw);
                     double delta_y = dist_x*sin(position.yaw) + dist_y*cos(position.yaw);
                     double delta_z = rot_z / ((_wheel_dist_x / 2) + (_wheel_dist_y) / 2);
+
+                    delta_x = delta_x + (0.0185 * delta_x * fabs(twist.linear_x)/0.4);
+                    delta_y = delta_y + (-0.134 * delta_y * fabs(twist.linear_y)/0.4);
+                    delta_z = delta_z + (0.033 * delta_z * fabs(twist.angular_z)/1);
 
                     position.x += delta_x/1000;
                     position.y += delta_y/1000;
@@ -525,6 +553,66 @@ bool Ubbo::verifyPacket(std::vector<uint8_t> packet, std::vector<uint8_t>::itera
             }
             else {
                 return false;
+            }
+        }
+        else if (packet[index - 5] == CMD_VELOCITY_STATUS){
+            if (packet[index - 4] == 3){
+                switch (packet[index - 3]){
+                    case 1:
+                    {
+                        int curr_vel = (short)(packet[index - 2] << 8 | packet[index -1]);
+                        _front_right_vel = (float)curr_vel/1000; // mm/s -> m/s 
+                        fr = true;
+                        break;
+                    }
+                    
+                    case 2:
+                    {
+                        int curr_vel = (short)(packet[index - 2] << 8 | packet[index -1]);
+                        _back_right_vel = (float)curr_vel/1000; // mm/s -> m/s 
+                        br = true;
+                        break;
+                    }
+                    
+                    case 3:
+                    {
+                        int curr_vel = (short)(packet[index - 2] << 8 | packet[index -1]);
+                        _back_left_vel = (float)curr_vel/1000; // mm/s -> m/s 
+                        bl = true;
+                        break;
+                    }
+
+                    case 4:
+                    {
+                        int curr_vel = (short)(packet[index - 2] << 8 | packet[index -1]);
+                        _front_left_vel = (float)curr_vel/1000; // mm/s -> m/s 
+                        fl = true;
+                        break;
+                    }
+                    
+                    default:
+                        break;
+                }
+                if (fr && br && bl && fl){
+                    float lin_vel_x = (_front_right_vel + _back_right_vel
+                        + _back_left_vel + _front_left_vel) / 4;
+                    float lin_vel_y = (_front_right_vel - _back_right_vel
+                        + _back_left_vel - _front_left_vel) / 4;
+                    float ang_vel_z = (_front_right_vel + _back_right_vel
+                        - _back_left_vel - _front_left_vel) / 4;
+
+                    float ang_rad_z = ang_vel_z / 
+                        ((_wheel_dist_x / 2) + (_wheel_dist_y / 2));
+
+                    twist.linear_x = lin_vel_x + (0.013 * lin_vel_x);
+                    twist.linear_y = lin_vel_y + (-0.143 * lin_vel_y);
+                    twist.angular_z = ang_rad_z*1000 + (0.015 * ang_rad_z);
+
+                    fr = false;
+                    br = false;
+                    bl = false;
+                    fl = false;
+                }
             }
         }
         else {

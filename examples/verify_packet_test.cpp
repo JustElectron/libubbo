@@ -33,10 +33,8 @@ int main(int argc, char** argv){
     my_ubbo.requestBatteryStatus();
     while (count < 5){
         std::cout << "Battery status: " << my_ubbo.getBatteryStatus() << std::endl;
-        const bool* sensor_status = {my_ubbo.getSensorStatus()};
-        for (int i = 0; i < 4; i++){
-            std::cout << "Sensor status: " << sensor_status[i] << std::endl;
-        }
+        uint8_t sensor_status = my_ubbo.getSensorStatus();
+        std::cout << "Sensor status: " << (unsigned)sensor_status << std::endl;
         count++;
         usleep(1000*1000);
     }

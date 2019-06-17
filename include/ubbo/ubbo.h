@@ -104,6 +104,8 @@ namespace ubbo {
          */
         size_t drive(float vel_x, float vel_y, float ang_z);
 
+        void stop();
+
         /**
          * @brief Drive robot forward at a target angle.
          * 
@@ -158,7 +160,15 @@ namespace ubbo {
 
         const uint8_t* getVersionStatus();
 
-        const bool* getSensorStatus();
+        uint8_t getSensorStatus();
+
+        bool getProxFront();
+
+        bool getProxRight();
+        
+        bool getProxBack();
+        
+        bool getProxLeft();
 
         //long getEncoderPosition();
 
@@ -174,6 +184,19 @@ namespace ubbo {
             double pitch;
             double roll;
         } position;
+
+        struct twist {
+            twist(): linear_x(0.0), linear_y(0.0), linear_z(0.0),
+                angular_x(0.0), angular_y(0.0), angular_z(0.0) {}
+
+            float linear_x;
+            float linear_y;
+            float linear_z;
+
+            float angular_x;
+            float angular_y;
+            float angular_z;
+        } twist;
 
         
 
@@ -211,11 +234,22 @@ namespace ubbo {
 
         uint8_t _battery_status;
         uint8_t _version_status[2];
-        bool _sensor_status[4];
+
+        bool _wall_sensor_front;
+        bool _wall_sensor_right;
+        bool _wall_sensor_back;
+        bool _wall_sensor_left;
+
         double _front_right_dist;
         double _back_right_dist;
         double _back_left_dist;
         double _front_left_dist;
+
+        float _front_right_vel;
+        float _back_right_vel;
+        float _back_left_vel;
+        float _front_left_vel;
+
         int _PPR;
 
         bool fr, br, bl, fl;
