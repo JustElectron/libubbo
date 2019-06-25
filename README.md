@@ -1,6 +1,6 @@
 # Libubbo
 
-This is a C++ library for interfacing with the Ubbo Maker telepresence robot. It is supposed to be working with, but not limited to ROS
+This is a C++ library for interfacing with the Ubbo Maker telepresence robot. It is intended to run on a linux platform, to be working with, but not limited to ROS. It has been developed and tested on a raspberry pi 3 b running ubuntu mate 16.04.
 The project is created as a part of a bachelor project in electronics engineering. 
 
 * Author: Andreas Just Rønning
