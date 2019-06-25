@@ -20,3 +20,12 @@ The project is created as a part of a bachelor project in electronics engineerin
     mkdir build && cd build
     cmake ..
     make
+    sudo make install
+
+### Pitfalls
+Make sure that the serial library is installed in either /usr or /usr/local. This can be done by setting CMAKE_INSTALL_PREFIX using:
+    
+    cd serial
+    cmake -DCMAKE_INSTALL_PREFIX=/usr
+    make
+    sudo make install
